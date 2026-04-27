@@ -1,0 +1,125 @@
+import sqlite3
+import random
+import matplotlib.pyplot as plt
+
+# FUNCTION 1: Create database and insert initial data
+def create_database():
+    # Connect to SQLite database (creates file if it doesn't exist)
+    conn = sqlite3.connect("population_AI.db")  
+    cursor = conn.cursor()
+
+    # Create table named 'population' with 3 columns
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS population (
+        city TEXT,
+        year INTEGER,
+        population INTEGER
+    )
+    """)
+
+    # List of 10 Florida cities
+    cities = [
+        "Orlando", "Miami", "Tampa", "Jacksonville", "Tallahassee",
+        "St. Petersburg", "Venice", "Fort Lauderdale", "Sarasota", "Gainesville"
+    ]
+
+    # Insert population data for year 2025
+    # Random population is used to simulate realistic values
+    for city in cities:
+        pop = random.randint(50000, 500000) 
+        cursor.execute("INSERT INTO population VALUES (?, ?, ?)", (city, 2025, pop))
+
+    # Save changes and close connection
+    conn.commit()
+    conn.close()
+
+# FUNCTION 2: Simulate population growth/decline
+def simulate_population():
+    conn = sqlite3.connect("population_AI.db")
+    cursor = conn.cursor()
+
+    # Get initial population for each city (year 2025)
+    cursor.execute("SELECT city, population FROM population WHERE year = 2025")
+    data = cursor.fetchall()
+
+    # Loop through each city
+    for city, base_pop in data:
+        current_pop = base_pop
+
+        # Simulate next 20 years (2026–2045)
+        for year in range(2026, 2046):
+
+            # Generate random growth rate between -2% and +5%
+            growth_rate = random.uniform(-0.02, 0.05)
+
+            # Calculate new population
+            current_pop = int(current_pop * (1 + growth_rate))
+
+            # Insert new record into database
+            cursor.execute(
+                "INSERT INTO population VALUES (?, ?, ?)",
+                (city, year, current_pop)
+            )
+
+    # Save all changes
+    conn.commit()
+    conn.close()
+
+
+# FUNCTION 3: Plot population growth for a selected city
+def plot_population():
+    conn = sqlite3.connect("population_AI.db")
+    cursor = conn.cursor()
+
+    # Get list of unique cities from database
+    cursor.execute("SELECT DISTINCT city FROM population")
+    cities = [row[0] for row in cursor.fetchall()]
+
+    # Display city options to user
+    print("\nChoose a city to view population growth:")
+    for i, city in enumerate(cities, 1):
+        print(f"{i}. {city}")
+
+    # Take user input
+    choice = int(input("Enter number: ")) - 1
+    selected_city = cities[choice]
+
+    # Retrieve population data for selected city
+    cursor.execute("""
+        SELECT year, population 
+        FROM population 
+        WHERE city = ? 
+        ORDER BY year
+    """, (selected_city,))
+    data = cursor.fetchall()
+
+    # Separate years and population values for plotting
+    years = [row[0] for row in data]
+    populations = [row[1] for row in data]
+
+    # Create line graph
+    plt.figure()
+    plt.plot(years, populations, marker='o')
+
+    # Add labels and title
+    plt.title(f"Population Growth for {selected_city}")
+    plt.xlabel("Year")
+    plt.ylabel("Population")
+
+    # Add grid for better readability
+    plt.grid()
+
+    # Display the graph
+    plt.show()
+
+    conn.close()
+
+# MAIN PROGRAM EXECUTION
+# Step 1: Create database and insert initial data
+create_database()
+
+# Step 2: Simulate population changes for 20 years
+simulate_population()
+
+# Step 3: Ask user and display graph
+plot_population()
